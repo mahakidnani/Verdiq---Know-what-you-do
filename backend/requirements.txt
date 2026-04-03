@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pydantic
+yfinance
+apify-client
+smartapi-python
+logzero
+breeze-connect
+openai
+anthropic
+python-dotenv
+pandas
+supabase
+PKNSETools
+pytz
