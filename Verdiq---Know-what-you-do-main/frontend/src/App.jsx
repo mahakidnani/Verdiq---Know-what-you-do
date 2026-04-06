@@ -8,6 +8,8 @@ export default function App() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [summary, setSummary] = useState(null)
+  const [smartMoney, setSmartMoney] = useState(null)
 
   const analyse = async () => {
     if (!ticker) return
@@ -16,6 +18,11 @@ export default function App() {
     try {
       const res = await axios.get(`${API}/api/v1/company/${ticker.toUpperCase()}`)
       setData(res.data)
+      const sumRes = await axios.get(`${API}/api/v1/company/${ticker.toUpperCase()}/summary`)
+      setSummary(sumRes.data.summary)
+
+      const smRes = await axios.get(`${API}/api/v1/company/${ticker.toUpperCase()}/smart-money`)
+setSmartMoney(smRes.data)
     } catch (e) {
       setError('Could not fetch data. Check the ticker and try again.')
     }
@@ -146,7 +153,37 @@ export default function App() {
               </div>
             </div>
           </div>
+           {/* Layman Business Breakdown */}
+{summary && (
+  <div style={{ background:'#fff', borderRadius:16, padding:24, marginBottom:20, boxShadow:'0 1px 4px rgba(0,0,0,0.08)' }}>
+    <h3 style={{ margin:'0 0 12px', color:'#1e293b' }}>💬 What does this company actually do?</h3>
+    <p style={{ color:'#475569', lineHeight:1.8, fontSize:16, margin:0 }}>{summary}</p>
+  </div>
+)}
 
+{/* Smart Money Tracker */}
+{smartMoney && (
+  <div style={{ background:'#fff', borderRadius:16, padding:24, marginBottom:20, boxShadow:'0 1px 4px rgba(0,0,0,0.08)' }}>
+    <h3 style={{ margin:'0 0 16px', color:'#1e293b' }}>🐋 Smart Money Tracker</h3>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:16 }}>
+      {[
+        { label:'Promoters', value: smartMoney.promoter_holding + '%', color:'#6366f1' },
+        { label:'Institutional (FII/DII)', value: smartMoney.fii_holding + '%', color:'#22c55e' },
+        { label:'Retail', value: smartMoney.retail_holding + '%', color:'#f59e0b' }
+      ].map((item, i) => (
+        <div key={i} style={{ textAlign:'center', padding:16, background:'#f8fafc', borderRadius:12 }}>
+          <div style={{ fontSize:24, fontWeight:800, color:item.color }}>{item.value}</div>
+          <div style={{ fontSize:13, color:'#64748b', marginTop:4 }}>{item.label}</div>
+        </div>
+      ))}
+    </div>
+    <div style={{ background:'#f8fafc', padding:12, borderRadius:10, textAlign:'center' }}>
+      <span style={{ fontWeight:700, color: smartMoney.signal === 'bullish' ? '#22c55e' : smartMoney.signal === 'bearish' ? '#ef4444' : '#f59e0b' }}>
+        {smartMoney.signal === 'bullish' ? '🟢' : smartMoney.signal === 'bearish' ? '🔴' : '🟡'} {smartMoney.signal_note}
+      </span>
+    </div>
+  </div>
+)}
           <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Verdiq does not provide investment advice. For informational purposes only.</p>
         </div>
       )}

@@ -50,7 +50,42 @@ class LLMClientAdapter:
                 f"{ticker} is currently trading at {current_pe}x P/E, which deviates significantly from its 5-year historical average of {avg_pe}x. "
                 f"Given the recent momentum signals, the market appears to be highly pricing in its growth narrative, suggesting a '{verdict}' stance."
             )
+        
         except Exception as e:
             print(f"[ERROR] LLM generation failed: {e}")
             return "Unable to generate real-time AI rationale at this moment due to connection or rate-limiting issues."
+        
+        
+    @classmethod
+    async def generate(cls, prompt: str, max_tokens: int = 250) -> str:
+        """
+        General-purpose LLM text generation for any prompt.
+        Used by: Layman Business Breakdown, future features.
+        """
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        openai_key = os.getenv("OPENAI_API_KEY")
 
+        try:
+            if anthropic_key:
+                client = AsyncAnthropic(api_key=anthropic_key)
+                response = await client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.content[0].text.strip()
+
+            elif openai_key:
+                client = AsyncOpenAI(api_key=openai_key)
+                response = await client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.choices[0].message.content.strip()
+
+            return "AI summary unavailable — no API key configured."
+
+        except Exception as e:
+            print(f"[ERROR] LLM generate failed: {e}")
+            return "Unable to generate summary at this moment."
