@@ -259,3 +259,73 @@ def list_warming() -> Dict[str, Any]:
 @app.get("/health")
 def health_check():
     return {"status": "ok", "message": "VERDIQ Backend is running."}
+
+# ──────────────────────────────────────────────────────────────
+# FEATURE: LAYMAN BUSINESS BREAKDOWN
+# ──────────────────────────────────────────────────────────────
+
+@app.get("/api/v1/company/{ticker}/summary")
+async def get_summary(ticker: str) -> Dict[str, Any]:
+    ticker = ticker.upper()
+    try:
+        info = YFinanceAdapter.get_info(ticker)
+        company_name = info.get("longName", ticker)
+        sector = info.get("sector", "Unknown")
+        description = info.get("longBusinessSummary", "")
+
+        from backend.adapters.llm_client import LLMClient
+
+        prompt = f"""
+You are explaining {company_name} to a first-time investor in India who has never studied finance.
+Company sector: {sector}
+Official description: {description[:500]}
+
+Write exactly 150 words explaining:
+1. What this company actually does in simple terms
+2. How it makes its money
+3. Which part of the business is growing fastest
+4. One key risk a new investor should know
+
+Rules: No jargon. No bullet points. One flowing paragraph. Conversational tone.
+"""
+        summary = LLMClient.generate(prompt)
+        return {"ticker": ticker, "company_name": company_name, "summary": summary}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Summary generation failed: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────
+# FEATURE: SMART MONEY TRACKER
+# ──────────────────────────────────────────────────────────────
+
+@app.get("/api/v1/company/{ticker}/smart-money")
+async def get_smart_money(ticker: str) -> Dict[str, Any]:
+    ticker = ticker.upper()
+    try:
+        import yfinance as yf
+        stock = yf.Ticker(ticker)
+        info = stock.info
+
+        promoter = round(info.get("heldPercentInsiders", 0) * 100, 2)
+        institution = round(info.get("heldPercentInstitutions", 0) * 100, 2)
+        retail = round(max(0, 100 - promoter - institution), 2)
+
+        if institution > 40:
+            signal, signal_note = "bullish", "Strong institutional confidence"
+        elif institution > 20:
+            signal, signal_note = "neutral", "Moderate institutional interest"
+        else:
+            signal, signal_note = "bearish", "Low institutional interest"
+
+        return {
+            "ticker": ticker,
+            "promoter_holding": promoter,
+            "fii_holding": institution,
+            "retail_holding": retail,
+            "signal": signal,
+            "signal_note": signal_note
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Smart money fetch failed: {str(e)}")
