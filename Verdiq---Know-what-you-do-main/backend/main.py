@@ -144,6 +144,27 @@ async def get_company(ticker: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/v1/company/{ticker}/summary")
+async def get_company_summary(ticker: str) -> Dict[str, Any]:
+    """
+    Returns a summary view for the requested company ticker.
+
+    This endpoint reuses the same JIT pipeline and cache behavior as
+    `/api/v1/company/{ticker}`, but returns only the subset of fields
+    needed for a summary card.
+    """
+    company_data = await get_company(ticker)
+    return {
+        "ticker": company_data.get("ticker"),
+        "company_name": company_data.get("company_name"),
+        "sector": company_data.get("sector"),
+        "last_price": company_data.get("last_price"),
+        "scorecard": company_data.get("scorecard"),
+        "valuation": company_data.get("valuation"),
+        "_meta": company_data.get("_meta"),
+    }
+
+
 # ──────────────────────────────────────────────────────────────
 # BACKGROUND WARM ENDPOINT
 # ──────────────────────────────────────────────────────────────

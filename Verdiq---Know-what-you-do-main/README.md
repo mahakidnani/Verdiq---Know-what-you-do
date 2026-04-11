@@ -56,7 +56,7 @@ Verdiq simplifies stock analysis by focusing on clarity and decision-making.
 - Frontend: React.js
 - Backend: Node.js / Express
 - Database: MongoDB / PostgreSQL
-- Cloud: AWS (S3, EC2/Lambda, RDS/DynamoDB)
+- Cloud - Supabase
 - APIs: Financial data APIs
 - AI Layer (optional): LLM for generating insights
 
@@ -64,7 +64,7 @@ Verdiq simplifies stock analysis by focusing on clarity and decision-making.
 
 ##  Project Scope
 
-This is a prototype built as part of a Cloud Computing project.  
+This is a prototype built as part of a personal learning project.  
 It is intended for educational purposes and does not provide financial advice.
 
 

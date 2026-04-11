@@ -1,1 +1,0 @@
-# Batch ingestion scripts package

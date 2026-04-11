@@ -1,8 +1,0 @@
-venv/
-.env
-.agent/
-results/
-__pycache__/
-*.pyc
-*.pyo
-.DS_Store
