@@ -47,8 +47,8 @@ class LLMClientAdapter:
             print(f"[WARN] No LLM keys found. Using deterministic fallback rationale for {ticker}.")
             # Fallback if no API key
             return (
-                f"{ticker} is currently trading at {current_pe}x P/E, which deviates significantly from its 5-year historical average of {avg_pe}x. "
-                f"Given the recent momentum signals, the market appears to be highly pricing in its growth narrative, suggesting a '{verdict}' stance."
+                f"Trading at {current_pe:.1f}x P/E compared to a historical {avg_pe:.1f}x. "
+                f"Given the recent momentum signals, the market appears to be highly pricing in its growth narrative, suggesting a '{verdict.replace('_', ' ').title()}' stance."
             )
         
         except Exception as e:

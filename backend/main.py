@@ -34,6 +34,13 @@ app.add_middleware(
 # runs. The second request gets a 202 "warming" response and retries.
 _warming: set[str] = set()
 
+def standardize_ticker(ticker: str) -> str:
+    """Auto-appends .NS for Indian stocks if no exchange suffix is provided."""
+    ticker = ticker.upper()
+    if "." not in ticker and ticker.isalpha():
+        return f"{ticker}.NS"
+    return ticker
+
 
 async def _run_pipeline(ticker: str) -> Dict[str, Any]:
     """
@@ -49,7 +56,7 @@ async def _run_pipeline(ticker: str) -> Dict[str, Any]:
     apify_data = ApifyScreenerAdapter.get_deep_fundamentals(ticker)
 
     # 2. Calculate scorecard + valuation
-    scorecard = ScorecardCalculator.calculate_scorecard(ticker)
+    scorecard = ScorecardCalculator.calculate_scorecard(ticker, apify_data)
     valuation = await ValuationEngine.generate_valuation(ticker)
 
     scorecard_dict = scorecard.model_dump()
@@ -95,7 +102,7 @@ async def get_company(ticker: str) -> Dict[str, Any]:
     so it can show/hide a loading skeleton or a "fresh data" badge.
     """
     try:
-        ticker = ticker.upper()
+        ticker = standardize_ticker(ticker)
 
         # ─── FAST PATH: Check Supabase for fresh cache ───────────────────────
         cached = SupabaseAdapter.get_cached_analysis(ticker)
@@ -148,19 +155,57 @@ async def get_company(ticker: str) -> Dict[str, Any]:
 async def get_company_summary(ticker: str) -> Dict[str, Any]:
     """
     Returns a summary view for the requested company ticker.
-
-    This endpoint reuses the same JIT pipeline and cache behavior as
-    `/api/v1/company/{ticker}`, but returns only the subset of fields
-    needed for a summary card.
     """
+    ticker = standardize_ticker(ticker)
     company_data = await get_company(ticker)
+    
+    company_name = company_data.get("company_name", ticker)
+    sector = company_data.get("sector", "Unknown Sector")
+    
+    from backend.adapters.llm_client import LLMClientAdapter
+    from backend.adapters.yfinance_adapter import YFinanceAdapter
+    try:
+        info = YFinanceAdapter.get_info(ticker)
+        description = info.get("longBusinessSummary", "")
+        
+        prompt = f"""
+You are explaining {company_name} to a first-time investor in India who has never studied finance.
+Company sector: {sector}
+Official description: {description[:500]}
+
+Write exactly 150 words following this structure:
+1. What the company actually does in simple terms.
+2. A strict breakdown of its Revenue Segments (e.g., "It makes 40% of its money from X, but Y is growing the fastest").
+3. One key risk a new investor should know.
+
+Rules: No jargon. No bullet points. One flowing paragraph. Conversational tone. Focus heavily on where the money comes from.
+"""
+        summary_text = await LLMClientAdapter.generate(prompt)
+        
+        revenue_growth_pct = company_data.get('scorecard', {}).get('revenue_growth', 0)
+        profit_margin_pct = company_data.get('scorecard', {}).get('profit_margin', 0)
+        debt_to_equity = company_data.get('scorecard', {}).get('debt_to_equity', 0)
+        
+        fallback_text = f"{company_name} is one of India's {sector} companies. " + (f"The company has shown {'+' if revenue_growth_pct > 0 else ''}{revenue_growth_pct:.1f}% revenue growth. " if revenue_growth_pct != 0 else "") + (f"It maintains a healthy profit margin of {profit_margin_pct:.1f}%. " if profit_margin_pct > 5 else f"Profit margins are currently thin at {profit_margin_pct:.1f}%, which is worth watching. " if profit_margin_pct > 0 else "") + (f"The company is practically debt-free with a D/E ratio of {debt_to_equity:.2f}. " if debt_to_equity < 50 else f"It carries significant debt at {debt_to_equity:.2f}x equity. ") + "Always research further before investing."
+
+        if "unable" in summary_text.lower() or "unavailable" in summary_text.lower():
+            summary_text = fallback_text
+    except Exception:
+        # Re-build fallback variables cleanly in case exception triggered before they were defined
+        revenue_growth_pct = company_data.get('scorecard', {}).get('revenue_growth', 0)
+        profit_margin_pct = company_data.get('scorecard', {}).get('profit_margin', 0)
+        debt_to_equity = company_data.get('scorecard', {}).get('debt_to_equity', 0)
+        fallback_text = f"{company_name} is one of India's {sector} companies. " + (f"The company has shown {'+' if revenue_growth_pct > 0 else ''}{revenue_growth_pct:.1f}% revenue growth. " if revenue_growth_pct != 0 else "") + (f"It maintains a healthy profit margin of {profit_margin_pct:.1f}%. " if profit_margin_pct > 5 else f"Profit margins are currently thin at {profit_margin_pct:.1f}%, which is worth watching. " if profit_margin_pct > 0 else "") + (f"The company is practically debt-free with a D/E ratio of {debt_to_equity:.2f}. " if debt_to_equity < 50 else f"It carries significant debt at {debt_to_equity:.2f}x equity. ") + "Always research further before investing."
+        summary_text = fallback_text
+
     return {
         "ticker": company_data.get("ticker"),
-        "company_name": company_data.get("company_name"),
-        "sector": company_data.get("sector"),
+        "company_name": company_name,
+        "sector": sector,
         "last_price": company_data.get("last_price"),
         "scorecard": company_data.get("scorecard"),
         "valuation": company_data.get("valuation"),
+        "summary": summary_text,
         "_meta": company_data.get("_meta"),
     }
 
@@ -181,7 +226,7 @@ async def warm_ticker(ticker: str, background_tasks: BackgroundTasks) -> Dict[st
 
     The frontend polls GET /health/cache/{ticker} to know when data is ready.
     """
-    ticker = ticker.upper()
+    ticker = standardize_ticker(ticker)
 
     # Skip if already fresh or already warming
     if SupabaseAdapter.is_cache_fresh(ticker):
@@ -241,7 +286,7 @@ def check_cache_health(ticker: str) -> Dict[str, Any]:
     Lightweight cache freshness probe — does NOT pull full data.
     Frontend polls this after receiving a 'warming' response to know when to retry.
     """
-    ticker = ticker.upper()
+    ticker = standardize_ticker(ticker)
     is_fresh = SupabaseAdapter.is_cache_fresh(ticker)
     is_warming = ticker in _warming
 
@@ -281,39 +326,7 @@ def list_warming() -> Dict[str, Any]:
 def health_check():
     return {"status": "ok", "message": "VERDIQ Backend is running."}
 
-# ──────────────────────────────────────────────────────────────
-# FEATURE: LAYMAN BUSINESS BREAKDOWN
-# ──────────────────────────────────────────────────────────────
-
-@app.get("/api/v1/company/{ticker}/summary")
-async def get_summary(ticker: str) -> Dict[str, Any]:
-    ticker = ticker.upper()
-    try:
-        info = YFinanceAdapter.get_info(ticker)
-        company_name = info.get("longName", ticker)
-        sector = info.get("sector", "Unknown")
-        description = info.get("longBusinessSummary", "")
-
-        from backend.adapters.llm_client import LLMClient
-
-        prompt = f"""
-You are explaining {company_name} to a first-time investor in India who has never studied finance.
-Company sector: {sector}
-Official description: {description[:500]}
-
-Write exactly 150 words explaining:
-1. What this company actually does in simple terms
-2. How it makes its money
-3. Which part of the business is growing fastest
-4. One key risk a new investor should know
-
-Rules: No jargon. No bullet points. One flowing paragraph. Conversational tone.
-"""
-        summary = LLMClient.generate(prompt)
-        return {"ticker": ticker, "company_name": company_name, "summary": summary}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Summary generation failed: {str(e)}")
+# FEATURE: LAYMAN BUSINESS BREAKDOWN (Removed logic combined into route above)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -322,22 +335,22 @@ Rules: No jargon. No bullet points. One flowing paragraph. Conversational tone.
 
 @app.get("/api/v1/company/{ticker}/smart-money")
 async def get_smart_money(ticker: str) -> Dict[str, Any]:
-    ticker = ticker.upper()
+    ticker = standardize_ticker(ticker)
     try:
         import yfinance as yf
         stock = yf.Ticker(ticker)
         info = stock.info
 
-        promoter = round(info.get("heldPercentInsiders", 0) * 100, 2)
-        institution = round(info.get("heldPercentInstitutions", 0) * 100, 2)
+        promoter = round((info.get("heldPercentInsiders") or 0) * 100, 2)
+        institution = round((info.get("heldPercentInstitutions") or 0) * 100, 2)
         retail = round(max(0, 100 - promoter - institution), 2)
 
-        if institution > 40:
-            signal, signal_note = "bullish", "Strong institutional confidence"
-        elif institution > 20:
-            signal, signal_note = "neutral", "Moderate institutional interest"
+        if institution >= 40:
+            signal, signal_note = "bullish", "Strong institutional confidence — large funds are invested."
+        elif institution >= 15:
+            signal, signal_note = "neutral", "Moderate institutional interest — worth monitoring."
         else:
-            signal, signal_note = "bearish", "Low institutional interest"
+            signal, signal_note = "bearish", "Limited institutional holdings — mostly retail-driven stock."
 
         return {
             "ticker": ticker,
@@ -350,3 +363,8 @@ async def get_smart_money(ticker: str) -> Dict[str, Any]:
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Smart money fetch failed: {str(e)}")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

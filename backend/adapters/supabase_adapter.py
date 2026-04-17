@@ -210,6 +210,12 @@ class SupabaseAdapter:
             "roe": build_kpi("Return on Equity", "roe_history", "%"),
             "debt_equity": build_kpi("Debt-to-Equity", "de_history", "x", invert=True),
             "pe_ratio": build_kpi("P/E vs Sector", "pe_history", "x", sector_median=metrics.get("sector_pe")),
+            "financial_health": intel.get("score_breakdown", {}).get("financial_health", 0),
+            "profitability": intel.get("score_breakdown", {}).get("profitability", 0),
+            "valuation_fairness": intel.get("score_breakdown", {}).get("valuation_fairness", 0),
+            "earnings_quality": intel.get("score_breakdown", {}).get("earnings_quality", 0),
+            "debt_safety": intel.get("score_breakdown", {}).get("debt_safety", 0),
+            "verdiq_score": intel.get("verdiq_score_total", 0),
         }
 
         valuation = {
@@ -312,8 +318,14 @@ class SupabaseAdapter:
             # ── Table 3: verdiq_intelligence (upsert expensive outputs) ──
             client.table("verdiq_intelligence").upsert({
                 "ticker": ticker,
-                "verdiq_score_total": None,  # Phase 2
-                "score_breakdown": {},       # Phase 2
+                "verdiq_score_total": scorecard_data.get("verdiq_score"),
+                "score_breakdown": {
+                    "financial_health": scorecard_data.get("financial_health"),
+                    "profitability": scorecard_data.get("profitability"),
+                    "valuation_fairness": scorecard_data.get("valuation_fairness"),
+                    "earnings_quality": scorecard_data.get("earnings_quality"),
+                    "debt_safety": scorecard_data.get("debt_safety"),
+                },
                 "valuation_verdict": valuation_data.get("verdict"),
                 "valuation_confidence": valuation_data.get("confidence"),
                 "valuation_confidence_score": valuation_data.get("confidence_score"),

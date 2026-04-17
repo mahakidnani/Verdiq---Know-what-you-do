@@ -15,9 +15,23 @@ class YFinanceAdapter:
     
     @classmethod
     def get_info(cls, ticker: str) -> Dict[str, Any]:
-        """Fetches basic profile, trailing P/E, 52wk highs/lows."""
-        t = yf.Ticker(cls.get_ticker(ticker))
-        return t.info
+        """Fetches basic profile, trailing P/E, 52wk highs/lows with fallback."""
+        clean_ticker = ticker.replace(".NS", "")
+        ns_ticker = f"{clean_ticker}.NS"
+        try:
+            info = yf.Ticker(ns_ticker).info
+            if not info or len(info.keys()) == 0:
+                raise ValueError("Empty info dict returned for .NS")
+            print(f"--- yfinance info keys for {ns_ticker} ---")
+            print(list(info.keys()))
+            return info
+        except Exception as e:
+            print(f"[WARN] Failed to fetch {ns_ticker}: {e}. Retrying with {clean_ticker}")
+            info = yf.Ticker(clean_ticker).info
+            if info:
+                print(f"--- yfinance info keys for {clean_ticker} ---")
+                print(list(info.keys()))
+            return info
 
     @classmethod
     def get_history(cls, ticker: str, period: str = "5y") -> pd.DataFrame:

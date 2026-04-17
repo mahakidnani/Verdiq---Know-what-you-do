@@ -113,13 +113,21 @@ class ValuationEngine:
         bull = eps * (avg_pe * 1.2)
         
         # 4. Trigger the LLM for the Rationale
-        rationale = await LLMClientAdapter.generate_valuation_rationale(
-            ticker=ticker,
-            signals=[s.model_dump() for s in signals],
-            current_pe=current_pe,
-            avg_pe=avg_pe,
-            verdict=verdict
-        )
+        try:
+            rationale_text = await LLMClientAdapter.generate_valuation_rationale(
+                ticker=ticker,
+                signals=[s.model_dump() for s in signals],
+                current_pe=current_pe,
+                avg_pe=avg_pe,
+                verdict=verdict
+            )
+            
+            if "Unable" in rationale_text or "unavailable" in rationale_text:
+                rationale_text = f"Based on current P/E and historical averages, this stock appears {verdict.replace('_', ' ').title()} at current prices."
+            
+            rationale = rationale_text
+        except Exception:
+            rationale = f"Based on current P/E and historical averages, this stock appears {verdict.replace('_', ' ').title()} at current prices."
 
         return ValuationVerdictResponse(
             verdict=verdict,
