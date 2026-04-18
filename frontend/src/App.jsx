@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const TypewriterText = ({ text }) => {
   const [displayedCount, setDisplayedCount] = useState(0);
   
