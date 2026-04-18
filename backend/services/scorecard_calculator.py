@@ -1,5 +1,5 @@
 import yfinance as yf
-frommodels.scorecard import ScorecardResponse
+from models.scorecard import ScorecardResponse
 
 class ScorecardCalculator:
     """
