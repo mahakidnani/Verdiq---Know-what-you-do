@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 from typing import Dict, Any, Optional, List
 
-frommodels.financials import NormalizedCompanyFundamentals
+from models.financials import NormalizedCompanyFundamentals
 
 # Cache staleness threshold — data older than this triggers a fresh API fetch
 CACHE_TTL_HOURS = 24
