@@ -1,8 +1,8 @@
 import statistics
-from backend.models.valuation import ValuationVerdictResponse, ValuationSignal
-from backend.adapters.live_broker import LiveBrokerAdapter
-from backend.adapters.apify_screener import ApifyScreenerAdapter
-from backend.adapters.llm_client import LLMClientAdapter
+frommodels.valuation import ValuationVerdictResponse, ValuationSignal
+fromadapters.live_broker import LiveBrokerAdapter
+fromadapters.apify_screener import ApifyScreenerAdapter
+fromadapters.llm_client import LLMClientAdapter
 
 class ValuationEngine:
     """
