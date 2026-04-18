@@ -5,11 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
 from dotenv import load_dotenv
 
-from backend.adapters.yfinance_adapter import YFinanceAdapter
-from backend.adapters.apify_screener import ApifyScreenerAdapter
-from backend.adapters.supabase_adapter import SupabaseAdapter
-from backend.services.scorecard_calculator import ScorecardCalculator
-from backend.services.valuation_engine import ValuationEngine
+from adapters.yfinance_adapter import YFinanceAdapter
+from adapters.apify_screener import ApifyScreenerAdapter
+from adapters.supabase_adapter import SupabaseAdapter
+from services.scorecard_calculator import ScorecardCalculator
+from services.valuation_engine import ValuationEngine
+
 
 # Load environment variables from backend/.env
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
