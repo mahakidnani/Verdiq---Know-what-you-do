@@ -163,8 +163,8 @@ async def get_company_summary(ticker: str) -> Dict[str, Any]:
     company_name = company_data.get("company_name", ticker)
     sector = company_data.get("sector", "Unknown Sector")
     
-    from backend.adapters.llm_client import LLMClientAdapter
-    from backend.adapters.yfinance_adapter import YFinanceAdapter
+    from adapters.llm_client import LLMClientAdapter
+    from adapters.yfinance_adapter import YFinanceAdapter
     try:
         info = YFinanceAdapter.get_info(ticker)
         description = info.get("longBusinessSummary", "")
