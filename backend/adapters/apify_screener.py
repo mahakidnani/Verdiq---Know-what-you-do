@@ -15,8 +15,8 @@ import statistics
 from apify_client import ApifyClient
 from typing import Dict, Any, List, Optional
 
-from backend.models.financials import NormalizedCompanyFundamentals, NormalizedYearFinancials
-from backend.adapters.yfinance_normalizer import YFinanceNormalizer
+frommodels.financials import NormalizedCompanyFundamentals, NormalizedYearFinancials
+fromadapters.yfinance_normalizer import YFinanceNormalizer
 
 
 # ── The Apify Actor ID — replace with your actual Screener scraper actor ──
