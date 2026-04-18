@@ -323,7 +323,7 @@ def list_warming() -> Dict[str, Any]:
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "ok", "message": "VERDIQ Backend is running."}
 
